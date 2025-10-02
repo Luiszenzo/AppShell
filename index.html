@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tienda Campus</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4285f4">
+</head>
+<body>
+    <header class="app-header">
+        <h1>Tienda Campus</h1>
+        <nav class="main-nav">
+            <ul>
+                <li><a href="#papeleria">Papelería</a></li>
+                <li><a href="#electronica">Electrónica</a></li>
+                <li><a href="#snacks">Snacks</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="content-container">
+        <h2>Productos Destacados</h2>
+        <div id="productos-container">
+            <!-- El contenido dinámico se cargará aquí -->
+        </div>
+    </main>
+
+    <footer class="app-footer">
+        <p>Universidad XYZ – Tienda Campus 2025</p>
+    </footer>
+
+    <script src="app.js"></script>
+    <script>
+        // Registrar el Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('Service Worker registrado con éxito:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Error al registrar el Service Worker:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
+
+<script>
+    // Datos de ejemplo (simulando datos que podrían venir de un API)
+const productos = [
+    {
+        id: 1,
+        nombre: "Cuaderno Universitario",
+        precio: 4.99,
+        categoria: "papeleria"
+    },
+    {
+        id: 2,
+        nombre: "Audífonos Bluetooth",
+        precio: 29.99,
+        categoria: "electronica"
+    },
+    {
+        id: 3,
+        nombre: "Barra de Granola",
+        precio: 1.50,
+        categoria: "snacks"
+    }
+];
+
+// Función para mostrar los productos en el contenedor
+function mostrarProductos() {
+    const contenedor = document.getElementById('productos-container');
+    
+    // Limpiar el contenedor
+    contenedor.innerHTML = '';
+    
+    // Agregar cada producto al contenedor
+    productos.forEach(producto => {
+        const productoElement = document.createElement('div');
+        productoElement.className = 'producto';
+        productoElement.innerHTML = `
+            <h3>${producto.nombre}</h3>
+            <p class="precio">$${producto.precio.toFixed(2)}</p>
+            <p>Categoría: ${producto.categoria}</p>
+        `;
+        contenedor.appendChild(productoElement);
+    });
+}
+
+// Cargar productos cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', mostrarProductos);
+
+
+//Service Worker
+const CACHE_NAME = 'tienda-campus-v1';
+const ASSETS_TO_CACHE = [
+    '/',
+    '/index.html',
+    '/styles.css',
+    '/app.js',
+    '/manifest.json',
+    '/images/icon-192x192.png',
+    '/images/icon-512x512.png'
+];
+
+// Instalación del Service Worker
+self.addEventListener('install', event => {
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => {
+                console.log('Cache abierto');
+                return cache.addAll(ASSETS_TO_CACHE);
+            })
+    );
+});
+
+// Activación del Service Worker
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cacheName => {
+                    if (cacheName !== CACHE_NAME) {
+                        console.log('Eliminando caché antigua:', cacheName);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        })
+    );
+});
+
+// Estrategia de caché: Cache First, luego Network
+self.addEventListener('fetch', event => {
+    event.respondWith(
+        caches.match(event.request)
+            .then(response => {
+                // Si el recurso está en caché, lo devolvemos
+                if (response) {
+                    return response;
+                }
+                
+                // Si no está en caché, lo buscamos en la red
+                return fetch(event.request)
+                    .then(networkResponse => {
+                        // Si la respuesta no es válida, devolvemos el error
+                        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+                            return networkResponse;
+                        }
+                        
+                        // Hacemos una copia de la respuesta para guardarla en caché
+                        const responseToCache = networkResponse.clone();
+                        
+                        caches.open(CACHE_NAME)
+                            .then(cache => {
+                                cache.put(event.request, responseToCache);
+                            });
+                            
+                        return networkResponse;
+                    });
+            })
+    );
+});
+</script>
